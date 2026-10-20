@@ -1,0 +1,13 @@
+name: Lint
+on:
+  push:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: docker run --rm -v "$PWD:/w" -w /w mvdan/shfmt:latest -d ./*.sh
+      - run: shellcheck -s sh ./*.sh
+      - run: docker run --rm -v "$PWD:/w" -w /w rhysd/actionlint:latest -color
