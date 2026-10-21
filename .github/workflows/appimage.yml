@@ -5,25 +5,36 @@ concurrency:
 on:
   schedule:
     - cron: "0 6 * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: Suffix for re-releasing an already released upstream version (tags are immutable)
+        default: ""
 
 jobs:
   check:
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.upstream.outputs.tag }}
+      release_tag: ${{ steps.upstream.outputs.release_tag }}
       released: ${{ steps.upstream.outputs.released }}
     steps:
       - id: upstream
         env:
           GH_TOKEN: ${{ github.token }}
+          REVISION: ${{ inputs.revision }}
         run: |
           api() { curl -fsS -H "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/$1"; }
           tag=$(api marhkb/pods/releases/latest | jq -r .tag_name)
-          released=$(api "$GITHUB_REPOSITORY/releases?per_page=100" | jq --arg tag "$tag" 'any(.[]; .tag_name == $tag)')
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "released=$released" >> "$GITHUB_OUTPUT"
-          echo "Upstream $tag, released here: $released"
+          release_tag="$tag${REVISION:+-$REVISION}"
+          released=$(api "$GITHUB_REPOSITORY/releases?per_page=100" | jq --arg tag "$tag" --arg rel "$release_tag" \
+            'any(.[]; .tag_name == $rel or ($rel == $tag and (.tag_name | startswith($tag + "-"))))')
+          {
+            echo "tag=$tag"
+            echo "release_tag=$release_tag"
+            echo "released=$released"
+          } >> "$GITHUB_OUTPUT"
+          echo "Upstream $tag, releasing as $release_tag, already released: $released"
 
   build:
     needs: [check]
@@ -82,8 +93,8 @@ jobs:
             > notes.md
       - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
-          tag_name: ${{ env.TAG }}
-          name: Pods ${{ env.TAG }}
+          tag_name: ${{ needs.check.outputs.release_tag }}
+          name: Pods ${{ needs.check.outputs.release_tag }}
           body_path: notes.md
           files: dist/*
           fail_on_unmatched_files: true
