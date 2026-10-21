@@ -8,8 +8,7 @@ pacman -Syu --noconfirm \
 	gtk4 \
 	gtksourceview5 \
 	libadwaita \
+	mesa \
 	meson \
 	rust \
 	vte4
-
-get-debloated-pkgs --add-common --prefer-nano

@@ -37,12 +37,16 @@ jobs:
             arch: x86_64
           - runs-on: ubuntu-24.04-arm
             arch: aarch64
-    container: ghcr.io/pkgforge-dev/archlinux:latest
+    container: archlinux:base-devel
     env:
       TAG: ${{ needs.check.outputs.tag }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up anylinux tools
+        env:
+          QUICK_SHARUN: https://raw.githubusercontent.com/pkgforge-dev/Anylinux-AppImages/c9079a3c4a2af6ff86262dbbd794753aa0c38768/useful-tools/quick-sharun.sh
+          DEBLOATED_PACKAGES: https://raw.githubusercontent.com/pkgforge-dev/Anylinux-AppImages/c9079a3c4a2af6ff86262dbbd794753aa0c38768/useful-tools/get-debloated-pkgs.sh
+          MAKE_AUR_PACKAGE: https://raw.githubusercontent.com/pkgforge-dev/Anylinux-AppImages/c9079a3c4a2af6ff86262dbbd794753aa0c38768/useful-tools/make-aur-package.sh
         run: |
           curl -fsSL -o /tmp/setup.sh https://raw.githubusercontent.com/pkgforge-dev/anylinux-setup-action/7278cbb7c3692fce7241d427614ef7984192f138/setup.sh
           echo "da6bcf784b114b651990809dfc0e070180ab82bb0b79d2ba2de46d37f8fa0d2b  /tmp/setup.sh" | sha256sum -c

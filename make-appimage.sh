@@ -12,6 +12,7 @@ export ICON=/usr/share/icons/hicolor/scalable/apps/com.github.marhkb.Pods.svg
 export DESKTOP=/usr/share/applications/com.github.marhkb.Pods.desktop
 export STARTUPWMCLASS=com.github.marhkb.Pods
 export GTK_CLASS_FIX=1
+export USE_HOST_DRIVERS_EXPERIMENTAL=1
 
 tarball="pods-$TAG.tar.xz"
 wget -q "https://github.com/marhkb/pods/releases/download/$TAG/$tarball" \
