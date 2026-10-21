@@ -35,9 +35,12 @@ jobs:
         include:
           - runs-on: ubuntu-latest
             arch: x86_64
+            container: archlinux:base-devel
           - runs-on: ubuntu-24.04-arm
             arch: aarch64
-    container: archlinux:base-devel
+            # the official archlinux image is x86_64 only
+            container: ghcr.io/pkgforge-dev/archlinux:latest
+    container: ${{ matrix.container }}
     env:
       TAG: ${{ needs.check.outputs.tag }}
     steps:
