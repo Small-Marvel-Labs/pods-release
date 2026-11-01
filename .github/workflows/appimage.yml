@@ -53,19 +53,8 @@ jobs:
   build:
     needs: [check]
     if: ${{ needs.check.outputs.released == 'false' }}
-    name: Build (${{ matrix.arch }})
-    runs-on: ${{ matrix.runs-on }}
-    strategy:
-      matrix:
-        include:
-          - runs-on: ubuntu-latest
-            arch: x86_64
-            container: archlinux:base-devel
-          - runs-on: ubuntu-24.04-arm
-            arch: aarch64
-            # the official archlinux image is x86_64 only
-            container: ghcr.io/pkgforge-dev/archlinux:latest
-    container: ${{ matrix.container }}
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
     env:
       TAG: ${{ needs.check.outputs.tag }}
     steps:
@@ -88,7 +77,7 @@ jobs:
       - run: /bin/sh ./make-appimage.sh
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: AppImage-${{ matrix.arch }}
+          name: AppImage-x86_64
           path: dist/*.AppImage*
 
   release:

@@ -18,12 +18,8 @@ meson install -C src/build
 
 quick-sharun /usr/bin/pods
 
-case "$ARCH" in
-x86_64) updater_sha256=6bdaad9a3bcb0dd0cee345b89b24efb94c09c05e5c30ca88dadc1556344c5b18 ;;
-aarch64) updater_sha256=b26a110337002cb19afc84824912821548e3c621228321a81e968cce7682b5d0 ;;
-esac
 wget -q -O AppDir/bin/appimageupdatetool "https://github.com/pkgforge-dev/AppImageUpdate/releases/download/0.4.1/appimageupdate-$ARCH-linux"
-echo "$updater_sha256  AppDir/bin/appimageupdatetool" | sha256sum -c
+echo "6bdaad9a3bcb0dd0cee345b89b24efb94c09c05e5c30ca88dadc1556344c5b18  AppDir/bin/appimageupdatetool" | sha256sum -c
 chmod +x AppDir/bin/appimageupdatetool
 cp self-updater.hook AppDir/bin/10-self-updater.hook
 
