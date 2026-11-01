@@ -27,6 +27,9 @@ echo "$updater_sha256  AppDir/bin/appimageupdatetool" | sha256sum -c
 chmod +x AppDir/bin/appimageupdatetool
 cp self-updater.hook AppDir/bin/10-self-updater.hook
 
+# quick-sharun only copies the hicolor icons, and Pods sets this theme at startup.
+cp -r /usr/share/icons/com.github.marhkb.Pods AppDir/share/icons/
+
 quick-sharun --make-appimage
 
 # The test runs the app, and the updater would replace this build with the published release.
