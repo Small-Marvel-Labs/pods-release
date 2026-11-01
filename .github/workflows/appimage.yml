@@ -5,6 +5,13 @@ concurrency:
 env:
   SOURCE_REPO: shirshak55/pods
 on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/appimage.yml
+      - get-dependencies.sh
+      - make-appimage.sh
+      - self-updater.hook
   schedule:
     - cron: "0 6 * * *"
   workflow_dispatch:
@@ -30,7 +37,7 @@ jobs:
           releases=$(api "$GITHUB_REPOSITORY/releases?per_page=100")
           revision=$(jq --arg prefix "$tag-" '[.[].tag_name | select(startswith($prefix)) | ltrimstr($prefix) | tonumber] | max + 1' <<<"$releases")
           release_tag="$tag-$revision"
-          # A manual run always builds, so changes to the packaging can be released.
+          # Only the daily run skips a commit that is already released, so packaging changes get released.
           released=false
           if [ "$GITHUB_EVENT_NAME" = schedule ]; then
             released=$(jq --arg sha "$sha" 'any(.[]; (.body // "") | contains($sha))' <<<"$releases")
