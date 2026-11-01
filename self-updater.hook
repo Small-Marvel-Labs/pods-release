@@ -1,0 +1,33 @@
+#!/bin/sh
+# Replace this AppImage with the latest release without asking.
+# The running app keeps the old file, so the new version starts on the next launch.
+# The tool is copied out of the AppImage so it keeps working if the app closes during the update.
+
+_self_update() {
+	if [ "${DISABLE_AUTO_UPDATES:-}" = 1 ] || [ -z "${APPIMAGE:-}" ] || [ ! -w "$APPIMAGE" ] ||
+		[ -f "${HOST_XDG_CONFIG_HOME:-}/auto-updates-policy/no_updatecheck" ] ||
+		[ -f "${HOST_XDG_DATA_HOME:-}/appimagekit/no_updatecheck" ] ||
+		is_cmd --any am appman app-manager dbin soar; then
+		return 0
+	fi
+
+	_tool=$(mktemp)
+	trap 'rm -f "$_tool"' EXIT
+	cp "$APPDIR/bin/appimageupdatetool" "$_tool"
+	chmod +x "$_tool"
+
+	# Exit code 1 means an update exists. An offline check exits with 0, so the next launch tries again.
+	_status=0
+	"$_tool" -j "$APPIMAGE" >&2 || _status=$?
+	if [ "$_status" = 1 ]; then
+		if "$_tool" -Or "$APPIMAGE" >&2; then
+			notify "Pods was updated. Restart Pods to use the new version."
+		else
+			notify -ne "Pods could not update itself."
+		fi
+	elif [ "$_status" != 0 ]; then
+		>&2 echo "Pods update check failed with exit code $_status"
+	fi
+}
+
+_self_update &

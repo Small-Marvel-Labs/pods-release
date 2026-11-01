@@ -2,39 +2,46 @@ name: AppImage
 concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
+env:
+  SOURCE_REPO: shirshak55/pods
 on:
   schedule:
     - cron: "0 6 * * *"
   workflow_dispatch:
-    inputs:
-      revision:
-        description: Suffix for re-releasing an already released upstream version (tags are immutable)
-        default: ""
 
 jobs:
   check:
     runs-on: ubuntu-latest
     outputs:
-      tag: ${{ steps.upstream.outputs.tag }}
-      release_tag: ${{ steps.upstream.outputs.release_tag }}
-      released: ${{ steps.upstream.outputs.released }}
+      sha: ${{ steps.source.outputs.sha }}
+      tag: ${{ steps.source.outputs.tag }}
+      release_tag: ${{ steps.source.outputs.release_tag }}
+      released: ${{ steps.source.outputs.released }}
     steps:
-      - id: upstream
+      - id: source
         env:
           GH_TOKEN: ${{ github.token }}
-          REVISION: ${{ inputs.revision }}
         run: |
           api() { curl -fsS -H "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/$1"; }
-          tag=$(api marhkb/pods/releases/latest | jq -r .tag_name)
-          release_tag="$tag${REVISION:+-$REVISION}"
-          released=$(api "$GITHUB_REPOSITORY/releases?per_page=100" | jq --arg tag "$tag" --arg rel "$release_tag" \
-            'any(.[]; .tag_name == $rel or ($rel == $tag and (.tag_name | startswith($tag + "-"))))')
+          sha=$(api "$SOURCE_REPO/commits/main" | jq -r .sha)
+          version=$(curl -fsS "https://raw.githubusercontent.com/$SOURCE_REPO/$sha/meson.build" | sed -n "s/^  version: '\(.*\)',$/\1/p")
+          [ -n "$version" ]
+          tag="v$version"
+          releases=$(api "$GITHUB_REPOSITORY/releases?per_page=100")
+          revision=$(jq --arg prefix "$tag-" '[.[].tag_name | select(startswith($prefix)) | ltrimstr($prefix) | tonumber] | max + 1' <<<"$releases")
+          release_tag="$tag-$revision"
+          # A manual run always builds, so changes to the packaging can be released.
+          released=false
+          if [ "$GITHUB_EVENT_NAME" = schedule ]; then
+            released=$(jq --arg sha "$sha" 'any(.[]; (.body // "") | contains($sha))' <<<"$releases")
+          fi
           {
+            echo "sha=$sha"
             echo "tag=$tag"
             echo "release_tag=$release_tag"
             echo "released=$released"
           } >> "$GITHUB_OUTPUT"
-          echo "Upstream $tag, releasing as $release_tag, already released: $released"
+          echo "Source $sha, releasing as $release_tag, already released: $released"
 
   build:
     needs: [check]
@@ -56,6 +63,11 @@ jobs:
       TAG: ${{ needs.check.outputs.tag }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ env.SOURCE_REPO }}
+          ref: ${{ needs.check.outputs.sha }}
+          path: src
       - name: Set up anylinux tools
         env:
           QUICK_SHARUN: https://raw.githubusercontent.com/pkgforge-dev/Anylinux-AppImages/c9079a3c4a2af6ff86262dbbd794753aa0c38768/useful-tools/quick-sharun.sh
@@ -78,19 +90,19 @@ jobs:
     permissions:
       contents: write
     runs-on: ubuntu-latest
-    env:
-      TAG: ${{ needs.check.outputs.tag }}
     steps:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: AppImage-*
           merge-multiple: true
           path: dist
-      - run: |
-          curl -fsS "https://api.github.com/repos/marhkb/pods/releases/tags/$TAG" \
-            | jq -r .body \
-            | sed -e '/^<?xml/d' -e '/description/d' -e 's#<li>#- #' -e 's#<[^>]*>##g' -e 's/^[[:space:]]*//' \
-            > notes.md
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ needs.check.outputs.sha }}
+        run: |
+          curl -fsS -H "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/$SOURCE_REPO/commits/$SHA" \
+            | jq -r .commit.message > notes.md
+          printf '\nBuilt from https://github.com/%s/commit/%s\n' "$SOURCE_REPO" "$SHA" >> notes.md
       - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           tag_name: ${{ needs.check.outputs.release_tag }}
